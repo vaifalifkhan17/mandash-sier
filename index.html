@@ -1,0 +1,511 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EEDP — Enterprise Executive Dashboard Portal</title>
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- Lucide Icons via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="light" class="auth-pending">
+
+<!-- LOGIN -->
+<main class="login-screen" id="loginScreen">
+    <section class="login-panel">
+        <div class="login-brand">
+            <img src="assets/eedp-logo.png" alt="EEDP - Enterprise Executive Dashboard Portal">
+        </div>
+        <div class="login-copy">
+            <h1>Masuk EEDP</h1>
+            <p>Pilih profil akses untuk melihat portal sesuai peran pengguna.</p>
+        </div>
+        <form class="login-form" onsubmit="handleLogin(event)">
+            <label class="form-label" for="loginRoleSelect">Profil Akses</label>
+            <select class="form-input" id="loginRoleSelect">
+                <option value="direksi">Direksi</option>
+                <option value="super-admin">Super Admin</option>
+                <option value="pic-divisi">PIC Dashboard</option>
+            </select>
+            <label class="form-label" for="loginDivisionSelect">Scope Kategori</label>
+            <select class="form-input" id="loginDivisionSelect">
+                <option value="ALL">Semua Kategori</option>
+                <option value="KOR">KOR - Korporat & Direksi</option>
+                <option value="KEU">KEU - Keuangan</option>
+                <option value="OPS">OPS - Operasional</option>
+                <option value="AST">AST - Aset & Kawasan</option>
+                <option value="TNT">TNT - Tenant & Pelanggan</option>
+                <option value="PRY">PRY - Proyek & Pengembangan</option>
+                <option value="LEG">LEG - Legal & Kepatuhan</option>
+                <option value="SDM">SDM - SDM & Organisasi</option>
+                <option value="PGD">PGD - Pengadaan & Vendor</option>
+                <option value="RSK">RSK - Risiko & Audit</option>
+                <option value="TIK">TIK - Teknologi & Sistem</option>
+                <option value="SRV">SRV - Layanan Penunjang</option>
+            </select>
+            <button class="btn login-submit" type="submit">
+                <i data-lucide="log-in" style="width:14px;height:14px;"></i> Masuk Portal
+            </button>
+        </form>
+    </section>
+</main>
+
+<!-- TOMBOL KELUAR PREVIEW -->
+<button class="immersive-exit-bar" onclick="toggleImmersivePreview()">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Keluar Preview
+</button>
+
+<div class="app-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <div class="brand-logo" aria-label="EEDP logo">
+                    <img src="assets/eedp-logo.png" alt="EEDP - Enterprise Executive Dashboard Portal">
+                </div>
+            </div>
+            <button class="sidebar-toggle-fixed" id="sidebarToggleBtn" title="Toggle Sidebar">
+                <i data-lucide="chevrons-left" id="toggleIcon" style="width:14px;height:14px;"></i>
+            </button>
+        </div>
+        
+        <div class="sidebar-body">
+            <div class="sidebar-section-title">Menu Utama</div>
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" data-view="dashboard">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span class="nav-text">Ringkasan Eksekutif</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-view="divisions">
+                        <i data-lucide="building-2"></i>
+                        <span class="nav-text">Kategori Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-view="workspace">
+                        <i data-lucide="layout-grid"></i>
+                        <span class="nav-text">Tampilan Kustom</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-view="layouts">
+                        <i data-lucide="layers"></i>
+                        <span class="nav-text">Tampilan Tersimpan</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-view="admin" data-access="super-admin">
+                        <i data-lucide="settings-2"></i>
+                        <span class="nav-text">Admin Console</span>
+                    </a>
+                </li>
+            </ul>
+
+        </div>
+
+        <div class="sidebar-footer">
+                <div class="user-mini">
+                <div class="user-avatar" id="sidebarUserAvatar">AS</div>
+                <div class="user-info">
+                    <h4 id="sidebarUserName">Direksi SIER</h4>
+                    <p id="sidebarUserRole">Akses Direksi</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div class="main-wrapper">
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="breadcrumb">
+                    <span>EEDP</span>
+                    <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+                    <span class="current" id="breadcrumbCurrent">Ringkasan Eksekutif</span>
+                </div>
+                <div class="topbar-switcher">
+                    <button class="switcher-btn" data-switch-view="divisions" onclick="switchMainView('divisions')">Kategori</button>
+                    <button class="switcher-btn" data-switch-view="workspace" onclick="switchMainView('workspace')">Kustom</button>
+                </div>
+            </div>
+
+            <div class="topbar-right">
+                <div class="system-status-badge">
+                    <div class="pulse-dot"></div>
+                    <span>Data Aktif</span>
+                </div>
+                <button class="icon-btn" onclick="toggleDarkMode()" title="Mode Tampilan">
+                    <i data-lucide="moon" id="darkModeIcon" style="width:16px;height:16px;"></i>
+                </button>
+                <div style="position: relative;">
+                    <button class="icon-btn" onclick="toggleNotificationDropdown()" title="Prioritas">
+                        <i data-lucide="bell" style="width:16px;height:16px;"></i>
+                        <span class="notification-badge" id="notifBadge">3</span>
+                    </button>
+                    <div class="dropdown-menu" id="notifDropdown">
+                        <div class="dropdown-header">
+                            <span>Prioritas</span>
+                            <span style="font-size: 10px; color: var(--indigo); cursor: pointer;" onclick="markAllRead()">Tandai selesai</span>
+                        </div>
+                        <div class="dropdown-body" id="notifListContainer"></div>
+                    </div>
+                </div>
+                <button class="icon-btn" onclick="handleLogout()" title="Keluar">
+                    <i data-lucide="log-out" style="width:16px;height:16px;"></i>
+                </button>
+                <button class="user-avatar user-avatar-button" id="topbarUserAvatar" onclick="openUserProfileModal()" title="Profil User">AS</button>
+            </div>
+        </header>
+
+        <!-- CONTENT AREA -->
+        <div class="content-area">
+
+            <!-- VIEW 1: DASHBOARD -->
+            <div class="view-panel active" id="view-dashboard">
+                <div class="page-header">
+                    <div class="page-title">
+                        <h2>Ringkasan Eksekutif</h2>
+                        <p id="dashboardSubtitle">Ringkasan kondisi perusahaan, risiko utama, dan tindak lanjut prioritas.</p>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn" onclick="showToast('Data ringkasan diperbarui.', 'success')">
+                            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="dashboard-grid-main" id="dashboardDynamicContainer" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;"></div>
+            </div>
+
+            <!-- VIEW 2: CATEGORY DIRECTORY -->
+            <div class="view-panel" id="view-divisions">
+                <div class="page-header">
+                    <div class="page-title">
+                        <h2>Kategori Dashboard</h2>
+                        <p>Kelompok indikator campuran dari berbagai website sumber.</p>
+                    </div>
+                </div>
+                <div class="divisions-grid" id="divisionsGridContainer"></div>
+            </div>
+
+            <!-- VIEW 2.1: CATEGORY DETAIL -->
+            <div class="view-panel" id="view-division-detail">
+                <div class="page-header">
+                    <div class="page-title">
+                        <button class="btn btn-secondary btn-sm" onclick="switchMainView('divisions')" style="margin-bottom: 8px;">
+                            <i data-lucide="arrow-left" style="width:12px;height:12px;"></i> Kembali
+                        </button>
+                        <h2 id="detailDivisionTitle">Nama Kategori</h2>
+                        <p id="detailDivisionSubtitle">Detail dashboard, indikator, dan sumber data.</p>
+                    </div>
+                </div>
+                <div class="division-detail-container" id="divisionDetailContentContainer"></div>
+            </div>
+
+            <!-- VIEW 3: CUSTOM WORKSPACE BUILDER -->
+            <div class="view-panel" id="view-workspace">
+                <div class="page-header">
+                    <div class="page-title">
+                        <h2>Tampilan Kustom</h2>
+                        <p id="workspaceModeSubtitle">Pilih widget yang relevan untuk kebutuhan rapat atau review.</p>
+                    </div>
+                    <div class="page-actions workspace-action-group">
+                        <button class="btn btn-danger" onclick="clearCanvasWorkspace()">
+                            <i data-lucide="x" style="width:14px;height:14px;"></i> Batal
+                        </button>
+                        <button class="btn btn-warning" id="previewToggleBtn" onclick="toggleImmersivePreview()" title="Pratinjau layar penuh">
+                            <i data-lucide="eye" style="width:14px;height:14px;"></i> <span id="previewBtnText">Pratinjau</span>
+                        </button>
+                        <button class="btn" onclick="handleSaveLayoutAction()">
+                            <i data-lucide="save" style="width:14px;height:14px;"></i> Simpan
+                        </button>
+                    </div>
+                </div>
+
+                <div class="workspace-layout">
+                    <div class="canvas-area-wrapper">
+                        <div class="workspace-toolbar">
+                            <div style="display: flex; gap: 6px;">
+                                <span class="badge badge-info" id="widgetCountBadge">0 indikator aktif</span>
+                                <span class="badge badge-success"></span>
+                            </div>
+                        </div>
+                        <div class="canvas-grid" id="canvasGrid" 
+                             ondragover="onCanvasDragOver(event)" 
+                             ondrop="ondropCanvasDropToEmpty(event)"
+                             ondragleave="onCanvasDragLeave(event)">
+                        </div>
+                    </div>
+
+                    <div class="widget-picker-panel">
+                        <div style="font-weight: 700; font-size: 12px; color: var(--text-primary); margin-bottom: 2px;">INDIKATOR</div>
+                        <div style="font-weight: 600; font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Pilih indikator untuk ditampilkan</div>
+                        <div style="position: relative; margin-bottom: 8px;">
+                            <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-secondary);"></i>
+                            <input type="text" class="form-input" id="widgetSearchInput" aria-label="Cari indikator" placeholder="Cari indikator, kategori, atau website sumber..." style="padding-left: 34px; width: 100%;">
+                        </div>
+                        <ul class="tree-root" id="fullTreeLibrary"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 4: SAVED LAYOUTS -->
+            <div class="view-panel" id="view-layouts">
+                <div class="page-header">
+                    <div class="page-title">
+                        <h2>Tampilan Tersimpan</h2>
+                        <p>Kelola tampilan ringkasan untuk rapat, review, dan monitoring berkala.</p>
+                    </div>
+                    <div class="page-actions">
+                        <button class="btn" onclick="openNewLayoutModal()">
+                            <i data-lucide="plus" style="width:14px;height:14px;"></i> Tampilan Baru
+                        </button>
+                    </div>
+                </div>
+                <div class="layouts-grid" id="savedLayoutsGridContainer"></div>
+            </div>
+
+            <!-- VIEW 5: ADMIN CONSOLE -->
+            <div class="view-panel" id="view-admin">
+                <div class="page-header">
+                    <div class="page-title">
+                        <h2>Admin Console</h2>
+                        <p>Kelola sumber dashboard, kategori indikator, akses pengguna, dan konfigurasi portal.</p>
+                    </div>
+                </div>
+                <div class="admin-tabs">
+                    <button class="admin-tab active" data-admin-tab="sources" onclick="openAdminSection('sources')"><i data-lucide="database"></i> Sumber Dashboard</button>
+                    <button class="admin-tab" data-admin-tab="users" onclick="openAdminSection('users')"><i data-lucide="users"></i> Manajemen User</button>
+                    <button class="admin-tab" data-admin-tab="scope" onclick="openAdminSection('scope')"><i data-lucide="folder-tree"></i> Scope Kategori</button>
+                    <button class="admin-tab" data-admin-tab="audit" onclick="openAdminSection('audit')"><i data-lucide="activity"></i> Audit Log</button>
+                </div>
+                <div class="admin-workspace" id="adminWorkspace"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Floating Ghost Pratinjau -->
+<div id="dragGhostPreview" class="drag-ghost-preview" style="display: none;">
+    <span id="ghostTitle" style="font-weight:700;"></span>
+    <span id="ghostStatus" style="font-size:10px;"></span>
+    <span id="ghostAdvice" style="font-size:9px; opacity:0.85; font-style:italic;"></span>
+</div>
+
+<!-- MODAL: USER PROFILE -->
+<div class="modal-backdrop" id="userProfileModal" onclick="if(event.target === this) closeUserProfileModal();">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">Profil User</h3>
+            <button class="icon-btn" onclick="closeUserProfileModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        </div>
+        <form class="modal-form" onsubmit="saveUserProfile(event)">
+            <div class="profile-avatar-preview" id="profileAvatarPreview">AS</div>
+            <div class="form-group">
+                <label class="form-label">Nama Tampilan</label>
+                <input type="text" class="form-input" id="profileNameInput" placeholder="Nama user">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Inisial Avatar</label>
+                <input type="text" class="form-input" id="profileInitialsInput" maxlength="3" placeholder="Contoh: DS">
+            </div>
+            <div class="profile-readonly-grid">
+                <div><span>Role</span><strong id="profileRoleText">Direksi</strong></div>
+                <div><span>Scope</span><strong id="profileScopeText">Semua Kategori</strong></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closeUserProfileModal()">Batal</button>
+                <button class="btn" type="submit"><i data-lucide="save" style="width:14px;height:14px;"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: DASHBOARD SOURCE -->
+<div class="modal-backdrop" id="dashboardSourceModal" onclick="if(event.target === this) closeDashboardSourceModal();">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">Tambah Sumber Dashboard</h3>
+            <button class="icon-btn" onclick="closeDashboardSourceModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        </div>
+        <form class="modal-form" onsubmit="saveDashboardSource(event)">
+            <div class="form-group">
+                <label class="form-label">Nama Website / Dashboard</label>
+                <input class="form-input" id="sourceNameInput" placeholder="Contoh: Dashboard Korporat">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Kategori Utama</label>
+                <select class="form-input" id="sourceDivisionInput"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipe</label>
+                <select class="form-input" id="sourceTypeInput">
+                    <option value="Link">Link</option>
+                    <option value="Embed">Embed</option>
+                    <option value="API">API</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">URL</label>
+                <input class="form-input" id="sourceUrlInput" placeholder="https://...">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closeDashboardSourceModal()">Batal</button>
+                <button class="btn" type="submit"><i data-lucide="plus" style="width:14px;height:14px;"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: PORTAL USER -->
+<div class="modal-backdrop" id="portalUserModal" onclick="if(event.target === this) closePortalUserModal();">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">Tambah User</h3>
+            <button class="icon-btn" onclick="closePortalUserModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        </div>
+        <form class="modal-form" onsubmit="savePortalUser(event)">
+            <div class="form-group">
+                <label class="form-label">Nama User</label>
+                <input class="form-input" id="userNameInput" placeholder="Contoh: PIC Pemasaran">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Role</label>
+                <select class="form-input" id="userRoleInput" onchange="syncAdminUserDivision()">
+                    <option value="direksi">Direksi</option>
+                    <option value="super-admin">Super Admin</option>
+                    <option value="pic-divisi">PIC Dashboard</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Scope Kategori</label>
+                <select class="form-input" id="userDivisionInput"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-input" id="userStatusInput">
+                    <option value="Aktif">Aktif</option>
+                    <option value="Nonaktif">Nonaktif</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closePortalUserModal()">Batal</button>
+                <button class="btn" type="submit"><i data-lucide="user-plus" style="width:14px;height:14px;"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: SCOPE SETTINGS -->
+<div class="modal-backdrop" id="scopeSettingModal" onclick="if(event.target === this) closeScopeSettingModal();">
+    <div class="modal-card modal-card-wide">
+        <div class="modal-header">
+            <h3 class="modal-title">Setting Scope Kategori</h3>
+            <button class="icon-btn" onclick="closeScopeSettingModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        </div>
+        <div id="scopeSettingContent"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeScopeSettingModal()">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ACCESS SCOPE -->
+<div class="modal-backdrop" id="scopeRuleModal" onclick="if(event.target === this) closeScopeRuleModal();">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title" id="scopeModalTitle">Tambah Akses Kategori</h3>
+            <button class="icon-btn" onclick="closeScopeRuleModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        </div>
+        <form class="modal-form" onsubmit="saveScopeRule(event)">
+            <input type="hidden" id="scopeRuleIdInput">
+            <div class="form-group">
+                <label class="form-label">Role</label>
+                <select class="form-input" id="scopeRoleInput" onchange="syncScopeDivisionControl()">
+                    <option value="direksi">Direksi</option>
+                    <option value="super-admin">Super Admin</option>
+                    <option value="pic-divisi">PIC Dashboard</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Kategori</label>
+                <select class="form-input" id="scopeDivisionInput"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Hak Akses</label>
+                <select class="form-input" id="scopeAccessInput">
+                    <option value="Lihat">Lihat</option>
+                    <option value="Lihat & Susun Layout">Lihat & Susun Layout</option>
+                    <option value="Kelola Kategori">Kelola Kategori</option>
+                    <option value="Kelola Penuh">Kelola Penuh</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-input" id="scopeStatusInput">
+                    <option value="Aktif">Aktif</option>
+                    <option value="Nonaktif">Nonaktif</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closeScopeRuleModal()">Batal</button>
+                <button class="btn" type="submit"><i data-lucide="save" style="width:14px;height:14px;"></i> Simpan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: SAVE LAYOUT -->
+<div class="modal-backdrop" id="saveLayoutModal" onclick="if(event.target === this) closeSaveLayoutModal();">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title" id="saveModalTitle">Simpan Tampilan</h3>
+            <button class="icon-btn" onclick="closeSaveLayoutModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Nama Tampilan</label>
+            <input type="text" class="form-input" id="saveLayoutNameInput" placeholder="Contoh: Review Direksi Bulanan">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Catatan</label>
+            <input type="text" class="form-input" id="saveLayoutDescInput" placeholder="Contoh: Fokus risiko tenant dan progres proyek">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeSaveLayoutModal()">Batal</button>
+            <button class="btn" onclick="confirmSaveWorkspaceLayout()">Simpan</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: RENAME LAYOUT -->
+<div class="modal-backdrop" id="renameLayoutModal" onclick="if(event.target === this) closeRenameLayoutModal();">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">Ubah Nama Tampilan</h3>
+            <button class="icon-btn" onclick="closeRenameLayoutModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        </div>
+        <input type="hidden" id="renameLayoutIdInput">
+        <div class="form-group">
+            <label class="form-label">Nama Tampilan Baru</label>
+            <input type="text" class="form-input" id="renameLayoutNameInput" placeholder="Contoh: Review Kinerja Bulanan">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeRenameLayoutModal()">Batal</button>
+            <button class="btn" onclick="confirmRenameLayout()">Simpan</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+<script src="script.js"></script>
+</body>
+</html>
