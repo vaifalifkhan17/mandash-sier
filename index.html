@@ -331,7 +331,7 @@
 
 <!-- MODAL: DASHBOARD SOURCE -->
 <div class="modal-backdrop" id="dashboardSourceModal" onclick="if(event.target === this) closeDashboardSourceModal();">
-    <div class="modal-card">
+    <div class="modal-card dashboard-source-modal-card">
         <div class="modal-header">
             <h3 class="modal-title" id="dashboardSourceModalTitle">Tambah Card Dashboard</h3>
             <button class="icon-btn" onclick="closeDashboardSourceModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
@@ -351,15 +351,7 @@
                 <select class="form-input" id="sourceDivisionInput"></select>
             </div>
             <div class="form-group">
-                <label class="form-label">Tipe</label>
-                <select class="form-input" id="sourceTypeInput">
-                    <option value="Link">Link</option>
-                    <option value="Embed">Embed</option>
-                    <option value="API">API</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Base URL / URL</label>
+                <label class="form-label">Base URL</label>
                 <input class="form-input" id="sourceUrlInput" placeholder="https://dev-rklrpl.sier.id:8443">
             </div>
             <div class="form-group source-api-field">
@@ -381,8 +373,12 @@
                 </select>
             </div>
             <div class="form-group source-api-field">
-                <label class="form-label">Bearer Token</label>
-                <input class="form-input" id="sourceTokenInput" type="password" placeholder="Token API">
+                <label class="form-label">Token Profile</label>
+                <select class="form-input" id="sourceCredentialInput"></select>
+            </div>
+            <div class="form-group source-api-field">
+                <label class="form-label">Bearer Token Baru</label>
+                <input class="form-input" id="sourceTokenInput" type="password" placeholder="Isi sekali, berikutnya cukup pilih token profile">
             </div>
             <div class="form-group source-api-field">
                 <label class="form-label">Parameter Query</label>

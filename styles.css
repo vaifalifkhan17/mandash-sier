@@ -2852,6 +2852,26 @@ textarea {
   gap: 12px;
 }
 
+.dashboard-source-modal-card {
+  width: min(760px, calc(100vw - 40px)) !important;
+}
+
+.dashboard-source-modal-card .modal-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.dashboard-source-modal-card .modal-form > input[type="hidden"],
+.dashboard-source-modal-card .api-test-result,
+.dashboard-source-modal-card .modal-footer {
+  grid-column: 1 / -1;
+}
+
+.dashboard-source-modal-card .source-test-footer {
+  margin-bottom: -4px !important;
+}
+
 .form-group {
   gap: 7px !important;
 }
@@ -3601,6 +3621,10 @@ select.form-input:focus {
     padding: 16px !important;
   }
 
+  .dashboard-source-modal-card .modal-form {
+    grid-template-columns: 1fr;
+  }
+
   .modal-footer {
     display: grid !important;
     grid-template-columns: 1fr 1fr;
@@ -3927,12 +3951,79 @@ select.form-input:focus {
   white-space: nowrap;
 }
 
+.card-api-preview {
+  justify-content: flex-start !important;
+}
+
 .api-widget-table th,
 .api-widget-table td {
-  max-width: 140px;
+  max-width: 220px;
+  height: 34px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.canvas-span-3 .api-widget-table th,
+.canvas-span-3 .api-widget-table td {
+  max-width: 320px;
+}
+
+.card-api-preview .mini-widget-table {
+  margin-top: 10px;
+  table-layout: auto;
+}
+
+.canvas-span-3 .card-api-preview .mini-widget-table {
+  font-size: 10px;
+}
+
+.api-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.api-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--app-border);
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--app-surface);
+}
+
+.api-pagination button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-right: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.api-pagination button:last-child {
+  border-right: 0;
+}
+
+.api-pagination button.active {
+  background: #1f5ca8;
+  color: #ffffff;
+}
+
+.api-pagination button:disabled {
+  color: #94a3b8;
+  background: #f8fafc;
 }
 
 .api-field-list {
@@ -3976,6 +4067,7 @@ select.form-input:focus {
   display: grid;
   place-items: center;
   min-height: 112px;
+  margin-top: 10px;
   padding: 14px;
   border: 1px dashed var(--app-border-strong);
   border-radius: var(--app-radius-control);
@@ -4313,6 +4405,34 @@ select.form-input:focus {
   outline: 2px solid rgba(14, 132, 218, .18);
   outline-offset: 5px;
   border-radius: var(--app-radius-card);
+}
+
+.widget-size-control {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 3px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: #eef8ff;
+}
+
+.widget-size-control button {
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.widget-size-control button.active {
+  background: var(--app-blue);
+  color: #ffffff;
 }
 
 .widget-card-toolbar .drag-handle,

@@ -112,11 +112,13 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
     const AUTH_STORAGE_KEY = 'eedp_active_user_v1';
     const DIVISION_SETTINGS_STORAGE_KEY = 'eedp_division_settings_v1';
     const DASHBOARD_SOURCES_STORAGE_KEY = 'eedp_dashboard_sources_v1';
+    const API_CREDENTIALS_STORAGE_KEY = 'eedp_api_credentials_v1';
     const PORTAL_USERS_STORAGE_KEY = 'eedp_portal_users_v1';
     const SCOPE_RULES_STORAGE_KEY = 'eedp_scope_rules_v1';
     let currentUser = null;
     let divisionSettings = loadDivisionSettings();
     let dashboardSources = loadDashboardSources();
+    let apiCredentials = loadApiCredentials();
     let portalUsers = loadPortalUsers();
     let scopeRules = loadScopeRules();
     let canvasWidgets = [];
@@ -127,6 +129,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
     let activeAppliedLayoutId = 'executive';
     let activeWorkspaceLayoutId = 'executive';
     let apiTestPreviewPayload = null;
+    const apiTablePages = {};
     const SAVED_LAYOUTS_STORAGE_KEY = 'mandash_saved_layouts_v6';
 
     let notifications = [
@@ -140,7 +143,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             id: 'executive', 
             name: 'Ringkasan Eksekutif', 
             desc: 'Ringkasan indikator lintas kategori dari dashboard sumber', 
-            widgets: [] 
+            widgets: getDefaultExecutiveWidgets()
         }
     ];
 
@@ -238,6 +241,73 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
     function persistDashboardSources() {
         localStorage.setItem(DASHBOARD_SOURCES_STORAGE_KEY, JSON.stringify(dashboardSources));
+    }
+
+    function loadApiCredentials() {
+        try {
+            return JSON.parse(localStorage.getItem(API_CREDENTIALS_STORAGE_KEY) || '[]') || [];
+        } catch (err) {
+            return [];
+        }
+    }
+
+    function persistApiCredentials() {
+        localStorage.setItem(API_CREDENTIALS_STORAGE_KEY, JSON.stringify(apiCredentials));
+    }
+
+    function getDefaultExecutiveWidgets() {
+        return [
+            { ...divisionsData[0].applications[0].cards[0], gridRow: 1, gridCol: 1, colSpan: 1 },
+            { ...divisionsData[0].applications[0].cards[2], gridRow: 1, gridCol: 2, colSpan: 1 },
+            { ...divisionsData[0].applications[0].cards[6], gridRow: 1, gridCol: 3, colSpan: 1 },
+            { ...divisionsData[0].applications[0].cards[5], gridRow: 2, gridCol: 1, colSpan: 3 },
+            { ...divisionsData[0].applications[0].cards[1], gridRow: 4, gridCol: 1, colSpan: 1 },
+            { ...divisionsData[0].applications[0].cards[3], gridRow: 4, gridCol: 2, colSpan: 1 },
+            { ...divisionsData[0].applications[0].cards[4], gridRow: 4, gridCol: 3, colSpan: 1 }
+        ];
+    }
+
+    function getCredentialOptions(selectedId = '') {
+        const options = [`<option value="">Token baru / belum dipilih</option>`];
+        apiCredentials.forEach(credential => {
+            const selected = credential.id === selectedId ? ' selected' : '';
+            options.push(`<option value="${escapeAttr(credential.id)}"${selected}>${escapeHTML(credential.name)} - ${escapeHTML(credential.baseUrl)}</option>`);
+        });
+        return options.join('');
+    }
+
+    function findCredentialForSource(name, baseUrl) {
+        const normalizedUrl = String(baseUrl || '').replace(/\/+$/, '');
+        return apiCredentials.find(credential =>
+            credential.name === name && String(credential.baseUrl || '').replace(/\/+$/, '') === normalizedUrl
+        );
+    }
+
+    function getCredentialToken(credentialId) {
+        return apiCredentials.find(credential => credential.id === credentialId)?.token || '';
+    }
+
+    function upsertApiCredential({ id, name, baseUrl, token }) {
+        if (!token) return id || findCredentialForSource(name, baseUrl)?.id || '';
+        const existing = id
+            ? apiCredentials.find(credential => credential.id === id)
+            : findCredentialForSource(name, baseUrl);
+        const credentialId = existing?.id || `credential-${Date.now()}`;
+        const nextCredential = {
+            id: credentialId,
+            name,
+            baseUrl: String(baseUrl || '').replace(/\/+$/, ''),
+            token,
+            updatedAt: new Date().toISOString(),
+            createdAt: existing?.createdAt || new Date().toISOString()
+        };
+        if (existing) {
+            apiCredentials = apiCredentials.map(credential => credential.id === credentialId ? nextCredential : credential);
+        } else {
+            apiCredentials.unshift(nextCredential);
+        }
+        persistApiCredentials();
+        return credentialId;
     }
 
     function getDefaultPortalUsers() {
@@ -631,7 +701,8 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
     function getCardSpanByType(cardType) {
         if (['bar-chart', 'heatmap', 'executive-summary'].includes(cardType)) return 3;
-        if (['mini-table', 'status-list', 'timeline', 'stacked-kpi'].includes(cardType)) return 2;
+        if (cardType === 'mini-table') return 3;
+        if (['status-list', 'timeline', 'stacked-kpi'].includes(cardType)) return 2;
         return 1;
     }
 
@@ -641,6 +712,8 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         const visualType = source.visualType || 'table';
         const cardType = source.cardType || getCardTypeFromVisual(visualType);
         const endpoint = source.endpoint || '';
+        const isFullApiTable = cardType === 'mini-table' && isKavlingLegalityEndpoint(endpoint);
+        const inferredSpan = isFullApiTable ? 3 : getCardSpanByType(cardType);
         const base = {
             divisionCode: source.divisionCode || 'API',
             dashboardName: source.name || 'Dashboard API',
@@ -650,6 +723,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             apiEndpoint: endpoint,
             apiUrl: source.url || '',
             apiParams: source.params || '',
+            credentialId: source.credentialId || '',
             apiPreviewData: source.previewData || null
         };
         const card = {
@@ -661,7 +735,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             value: cardType === 'clean-metric' ? 'API' : undefined,
             description: 'Mengikuti response endpoint API',
             visual: getVisualLabel(visualType),
-            colSpanNum: Number(source.colSpanNum) || getCardSpanByType(cardType)
+            colSpanNum: isFullApiTable ? 3 : Number(source.colSpanNum) || inferredSpan
         };
         return [card];
     }
@@ -681,7 +755,10 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                 groupedApps.get(key).cards.push(...createCardsFromDashboardSource(source));
             }
         });
-        return Array.from(groupedApps.values());
+        return [
+            ...Array.from(groupedApps.values()),
+            ...(div.applications || [])
+        ];
     }
 
     function findCatalogCardById(cardId) {
@@ -787,6 +864,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                     <td>${escapeHTML(source.cardTitle || '-')}</td>
                     <td><span class="admin-status-pill">${escapeHTML(getVisualLabel(source.visualType || 'table'))}</span></td>
                     <td><span class="admin-muted-text">${escapeHTML(source.endpoint || source.url)}</span></td>
+                    <td><span class="admin-status-pill">${source.credentialId ? 'Token Siap' : 'Token Kosong'}</span></td>
                     <td class="admin-action-cell">
                         <a class="icon-btn admin-action-btn" href="${escapeAttr(source.url)}" target="_blank" rel="noopener noreferrer" title="Buka dashboard sumber"><i data-lucide="external-link"></i></a>
                         <button class="icon-btn admin-action-btn" onclick="editDashboardSource('${escapeAttr(source.id)}')" title="Edit card"><i data-lucide="pencil"></i></button>
@@ -795,7 +873,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                     </td>
                 </tr>
             `).join('')
-            : `<tr><td colspan="6">Belum ada card dashboard.</td></tr>`;
+            : `<tr><td colspan="7">Belum ada card dashboard.</td></tr>`;
 
         const userRows = portalUsers.map(user => {
             const profile = roleProfiles[user.role] || roleProfiles.direksi;
@@ -858,7 +936,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                     </div>
                     <div class="admin-table-wrap">
                         <table class="admin-table">
-                            <thead><tr><th>Dashboard Sumber</th><th>Kategori</th><th>Card</th><th>Tampilan</th><th>Endpoint</th><th>Aksi</th></tr></thead>
+                            <thead><tr><th>Dashboard Sumber</th><th>Kategori</th><th>Card</th><th>Tampilan</th><th>Endpoint</th><th>Token</th><th>Aksi</th></tr></thead>
                             <tbody>${sourceRows}</tbody>
                         </table>
                     </div>
@@ -928,10 +1006,10 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         document.getElementById('sourceIdInput').value = source?.id || '';
         document.getElementById('sourceNameInput').value = source?.name || '';
         document.getElementById('sourceCardTitleInput').value = source?.cardTitle || '';
-        document.getElementById('sourceTypeInput').value = source?.type || 'API';
         document.getElementById('sourceUrlInput').value = source?.url || '';
         document.getElementById('sourceEndpointInput').value = source?.endpoint || '';
         document.getElementById('sourceVisualInput').value = source?.visualType || 'table';
+        document.getElementById('sourceCredentialInput').innerHTML = getCredentialOptions(source?.credentialId || '');
         document.getElementById('sourceTokenInput').value = '';
         document.getElementById('sourceParamsInput').value = source?.params || '';
         apiTestPreviewPayload = source?.previewData || null;
@@ -967,9 +1045,10 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
     async function testDashboardApi() {
         const url = buildDashboardApiUrl();
-        const token = document.getElementById('sourceTokenInput')?.value.trim();
+        const credentialId = document.getElementById('sourceCredentialInput')?.value || '';
+        const token = document.getElementById('sourceTokenInput')?.value.trim() || getCredentialToken(credentialId);
         if (!url || !token) {
-            updateApiTestResult('warning', 'Base URL dan Bearer Token wajib diisi untuk test API.');
+            updateApiTestResult('warning', 'Base URL dan Bearer Token wajib diisi atau pilih Token Profile.');
             return;
         }
 
@@ -1214,10 +1293,10 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         const id = document.getElementById('sourceIdInput')?.value;
         const cardTitle = document.getElementById('sourceCardTitleInput')?.value.trim();
         const divisionCode = document.getElementById('sourceDivisionInput')?.value;
-        const type = document.getElementById('sourceTypeInput')?.value || 'Link';
         const url = document.getElementById('sourceUrlInput')?.value.trim();
         const endpoint = document.getElementById('sourceEndpointInput')?.value.trim();
         const visualType = document.getElementById('sourceVisualInput')?.value || 'table';
+        const selectedCredentialId = document.getElementById('sourceCredentialInput')?.value || '';
         const params = document.getElementById('sourceParamsInput')?.value.trim();
         const token = document.getElementById('sourceTokenInput')?.value.trim();
 
@@ -1226,8 +1305,13 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             return;
         }
 
-        if (type === 'API' && (!cardTitle || !endpoint)) {
+        if (!cardTitle || !endpoint) {
             showToast('Nama card dan endpoint wajib diisi untuk API.', 'warning');
+            return;
+        }
+
+        if (!token && !selectedCredentialId) {
+            showToast('Pilih Token Profile atau isi Bearer Token baru.', 'warning');
             return;
         }
 
@@ -1240,12 +1324,18 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
         const sourceId = id || `source-${Date.now()}`;
         const existingSource = dashboardSources.find(source => source.id === sourceId);
+        const credentialId = upsertApiCredential({
+            id: selectedCredentialId || existingSource?.credentialId || '',
+            name,
+            baseUrl: url,
+            token
+        }) || selectedCredentialId || existingSource?.credentialId || '';
         const nextSource = {
             id: sourceId,
             name,
             cardTitle: cardTitle || name,
             divisionCode,
-            type,
+            type: 'API',
             url,
             endpoint,
             params,
@@ -1253,7 +1343,8 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             visualLabel: getVisualLabel(visualType),
             cardType: getCardTypeFromVisual(visualType),
             colSpanNum: getCardSpanByType(getCardTypeFromVisual(visualType)),
-            hasToken: Boolean(token) || Boolean(existingSource?.hasToken),
+            credentialId,
+            hasToken: Boolean(credentialId),
             previewData: apiTestPreviewPayload || existingSource?.previewData || null,
             createdAt: existingSource?.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
@@ -1321,12 +1412,81 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
     function getApiRows(payload) {
         const data = unwrapApiPayload(payload);
-        if (Array.isArray(data)) return data.filter(item => item && typeof item === 'object').slice(0, 4);
+        if (Array.isArray(data)) return data.filter(item => item && typeof item === 'object');
         if (data && typeof data === 'object') {
             const nested = Object.values(data).find(value => Array.isArray(value));
-            if (nested) return nested.filter(item => item && typeof item === 'object').slice(0, 4);
+            if (nested) return nested.filter(item => item && typeof item === 'object');
         }
         return [];
+    }
+
+    function getApiTotalCount(payload, rows) {
+        const explicitTotal = pickFirstValue(payload, ['total', 'data.total', 'meta.total', 'pagination.total', 'recordsTotal']);
+        if (explicitTotal !== undefined) return Number(explicitTotal) || rows.length;
+        const unwrapped = unwrapApiPayload(payload);
+        if (Array.isArray(unwrapped)) return unwrapped.length;
+        return rows.length;
+    }
+
+    function getNestedValue(source, path) {
+        return String(path || '').split('.').reduce((value, key) => {
+            if (value === null || value === undefined) return undefined;
+            return value[key];
+        }, source);
+    }
+
+    function pickFirstValue(source, paths) {
+        for (const path of paths) {
+            const value = getNestedValue(source, path);
+            if (value !== null && value !== undefined && value !== '') return value;
+        }
+        return undefined;
+    }
+
+    function formatApiDate(value) {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return formatApiValue(value);
+        return date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function getStatusLabel(row) {
+        return pickFirstValue(row, ['status_label', 'statusLabel', 'status.name', 'status', 'submission_status_label']) || '-';
+    }
+
+    function getKavlingAddress(row) {
+        return pickFirstValue(row, [
+            'kavling.address',
+            'kavling.name',
+            'kavling_address',
+            'kavlingAddress',
+            'address',
+            'location'
+        ]);
+    }
+
+    function isKavlingLegalityEndpoint(endpoint) {
+        return /kavling-legalities/i.test(endpoint || '');
+    }
+
+    function buildApiTableColumns(endpoint, rows) {
+        if (isKavlingLegalityEndpoint(endpoint)) {
+            return [
+                { label: 'No', getValue: (_row, index) => index + 1 },
+                { label: 'Nama Tenant', getValue: row => pickFirstValue(row, ['company.name', 'tenant.name', 'tenant_name', 'company_name']) },
+                { label: 'Nama Kavling', getValue: row => getKavlingAddress(row) },
+                { label: 'Tanggal Masuk', getValue: row => formatApiDate(pickFirstValue(row, ['submitted_at', 'created_at', 'entry_date', 'tanggal_masuk'])) },
+                { label: 'Tanggal Selesai', getValue: row => formatApiDate(pickFirstValue(row, ['completed_at', 'finished_at', 'approved_at', 'tanggal_selesai'])) },
+                { label: 'Durasi', getValue: row => pickFirstValue(row, ['duration_label', 'duration', 'durasi']) },
+                { label: 'Status', getValue: row => getStatusLabel(row), isStatus: true }
+            ];
+        }
+
+        const firstRow = rows[0] || {};
+        return Object.keys(firstRow).slice(0, 5).map(key => ({
+            label: key.replace(/_/g, ' '),
+            getValue: row => row[key]
+        }));
     }
 
     function flattenApiObject(obj, prefix = '') {
@@ -1343,11 +1503,31 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
     function formatApiValue(value) {
         if (value === null || value === undefined || value === '') return '-';
         if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString('id-ID') : value.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+        if (Array.isArray(value)) return `${value.length} item`;
+        if (typeof value === 'object') {
+            return value.name || value.title || value.label || value.code || value.id || JSON.stringify(value);
+        }
         return String(value);
     }
 
+    function getApiTableKey(w) {
+        return String(w.id || `${w.dashboardName}-${w.apiEndpoint}`).replace(/[^a-zA-Z0-9_-]/g, '-');
+    }
+
+    function setApiTablePage(cardKey, page) {
+        apiTablePages[cardKey] = Math.max(1, Number(page) || 1);
+        renderCanvasWidgets();
+    }
+
+    function getPaginationPages(currentPage, pageCount) {
+        const maxButtons = 5;
+        const start = Math.max(1, Math.min(currentPage - 2, pageCount - maxButtons + 1));
+        const end = Math.min(pageCount, start + maxButtons - 1);
+        return Array.from({ length: end - start + 1 }, (_item, index) => start + index);
+    }
+
     function renderApiCardContent(w, division) {
-        const rows = getApiRows(w.apiPreviewData);
+        const allRows = getApiRows(w.apiPreviewData);
         const payload = unwrapApiPayload(w.apiPreviewData);
         const flat = flattenApiObject(payload).filter(([, value]) => value !== null && value !== undefined).slice(0, 6);
         const endpoint = w.apiEndpoint || 'Endpoint belum diisi';
@@ -1375,8 +1555,19 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         }
 
         if (w.type === 'mini-table') {
-            const firstRow = rows[0] || {};
-            const columns = Object.keys(firstRow).slice(0, 4);
+            const cardKey = getApiTableKey(w);
+            const pageSize = 10;
+            const totalRows = getApiTotalCount(w.apiPreviewData, allRows);
+            const localPageCount = Math.max(1, Math.ceil(allRows.length / pageSize));
+            const currentPage = Math.min(Math.max(1, Number(apiTablePages[cardKey]) || 1), localPageCount);
+            apiTablePages[cardKey] = currentPage;
+            const startIndex = (currentPage - 1) * pageSize;
+            const rows = allRows.slice(startIndex, startIndex + pageSize);
+            const columns = buildApiTableColumns(endpoint, rows);
+            const shownStart = rows.length ? startIndex + 1 : 0;
+            const shownEnd = Math.min(startIndex + rows.length, allRows.length || totalRows);
+            const pageItems = getPaginationPages(currentPage, localPageCount);
+            const canUseLocalPagination = allRows.length > pageSize;
             return `
                 <div class="dense-card-head">
                     <div>
@@ -1388,11 +1579,23 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                 </div>
                 ${rows.length && columns.length ? `
                     <table class="mini-widget-table api-widget-table">
-                        <thead><tr>${columns.map(col => `<th>${escapeHTML(col.replace(/_/g, ' '))}</th>`).join('')}</tr></thead>
+                        <thead><tr>${columns.map(col => `<th>${escapeHTML(col.label)}</th>`).join('')}</tr></thead>
                         <tbody>
-                            ${rows.map(row => `<tr>${columns.map(col => `<td>${escapeHTML(formatApiValue(row[col]))}</td>`).join('')}</tr>`).join('')}
+                            ${rows.map((row, index) => `<tr>${columns.map(col => {
+                                const value = col.getValue(row, index);
+                                const formatted = formatApiValue(value);
+                                return `<td>${col.isStatus ? `<span>${escapeHTML(formatted)}</span>` : escapeHTML(formatted)}</td>`;
+                            }).join('')}</tr>`).join('')}
                         </tbody>
                     </table>
+                    <div class="api-table-footer">
+                        <span>Menampilkan ${shownStart} - ${shownEnd} Dari ${totalRows} Data</span>
+                        ${canUseLocalPagination ? `<div class="api-pagination">
+                            <button type="button" ${currentPage <= 1 ? 'disabled' : ''} onclick="event.stopPropagation();setApiTablePage('${escapeAttr(cardKey)}', ${currentPage - 1})">Previous</button>
+                            ${pageItems.map(page => `<button type="button" class="${page === currentPage ? 'active' : ''}" onclick="event.stopPropagation();setApiTablePage('${escapeAttr(cardKey)}', ${page})">${page}</button>`).join('')}
+                            <button type="button" ${currentPage >= localPageCount ? 'disabled' : ''} onclick="event.stopPropagation();setApiTablePage('${escapeAttr(cardKey)}', ${currentPage + 1})">Next</button>
+                        </div>` : ''}
+                    </div>
                 ` : emptyState}
             `;
         }
@@ -1419,7 +1622,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
     function renderCardHTML(w) {
         const wColor = w.widgetColor || '#38A9E8';
-        const span = w.colSpan || getCardSpan(w);
+        const span = getCardSpan(w);
         const division = w.divisionCode || 'SYS';
 
         let cardClass = 'futuristic-card';
@@ -1837,6 +2040,9 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
     function getCardHeightRows(card) {
         if (!card) return 1;
+        if (card.sourceType === 'API' && !card.apiPreviewData) return 3;
+        if (card.sourceType === 'API' && card.type === 'mini-table' && isKavlingLegalityEndpoint(card.apiEndpoint)) return 6;
+        if (card.sourceType === 'API' && card.type === 'mini-table') return 5;
         if (['bar-chart', 'heatmap', 'executive-summary'].includes(card.type)) return 4;
         return 3;
     }
@@ -2277,6 +2483,17 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         showToast('Indikator dihapus dari kanvas', 'warning');
     }
 
+    function resizeWidgetSpan(idx, span) {
+        const widget = canvasWidgets[idx];
+        if (!widget) return;
+        widget.colSpan = Math.max(1, Math.min(GHOST_COLS, Number(span) || 1));
+        widget.colSpanNum = widget.colSpan;
+        normalizeCanvasLayout();
+        renderCanvasWidgets();
+        syncActiveLayoutFromWorkspace();
+        showToast(`Lebar card diubah menjadi ${widget.colSpan} petak.`, 'success');
+    }
+
     function clearCanvasWorkspace() {
         canvasWidgets = [];
         selectedCanvasWidgetId = null;
@@ -2356,8 +2573,11 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                     <div class="canvas-card-meta">
                         <span class="canvas-dashboard-name" title="${escapeAttr(dashboardName)}">${escapeHTML(dashboardName)}</span>
                         <div class="widget-card-toolbar">
+                            <div class="widget-size-control" title="Atur lebar card">
+                                ${[1, 2, 3].map(size => `<button class="${span === size ? 'active' : ''}" onclick="event.stopPropagation();resizeWidgetSpan(${idx}, ${size})" type="button">${size}</button>`).join('')}
+                            </div>
                             <button class="icon-btn widget-action-btn canvas-move-btn" title="Pindahkan indikator" onclick="event.stopPropagation();"><i data-lucide="move" style="width:14px;height:14px;"></i></button>
-                        <button class="icon-btn widget-action-btn" onclick="event.stopPropagation();removeWidgetFromCanvas(${idx})" title="Hapus indikator"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
+                            <button class="icon-btn widget-action-btn" onclick="event.stopPropagation();removeWidgetFromCanvas(${idx})" title="Hapus indikator"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
                         </div>
                     </div>
                     ${markup}
@@ -2405,6 +2625,10 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                 ...layout,
                 widgets: deepCloneWidgets(layout.widgets || [])
             }));
+            const executiveLayout = savedLayouts.find(layout => layout.id === 'executive');
+            if (executiveLayout && (!Array.isArray(executiveLayout.widgets) || executiveLayout.widgets.length === 0)) {
+                executiveLayout.widgets = getDefaultExecutiveWidgets();
+            }
         } catch (err) {
             console.warn('Data tampilan tersimpan tidak valid; memakai default.', err);
         }
