@@ -126,6 +126,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
     let openTreeDivisions = {};
     let activeAppliedLayoutId = 'executive';
     let activeWorkspaceLayoutId = 'executive';
+    let apiTestPreviewPayload = null;
     const SAVED_LAYOUTS_STORAGE_KEY = 'mandash_saved_layouts_v6';
 
     let notifications = [
@@ -139,15 +140,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             id: 'executive', 
             name: 'Ringkasan Eksekutif', 
             desc: 'Ringkasan indikator lintas kategori dari dashboard sumber', 
-            widgets: [
-                { ...divisionsData[0].applications[0].cards[0], gridRow: 1, gridCol: 1, colSpan: 1 }, 
-                { ...divisionsData[0].applications[0].cards[2], gridRow: 1, gridCol: 2, colSpan: 1 }, 
-                { ...divisionsData[0].applications[0].cards[6], gridRow: 1, gridCol: 3, colSpan: 1 }, 
-                { ...divisionsData[0].applications[0].cards[5], gridRow: 2, gridCol: 1, colSpan: 3 }, 
-                { ...divisionsData[0].applications[0].cards[1], gridRow: 4, gridCol: 1, colSpan: 1 }, 
-                { ...divisionsData[0].applications[0].cards[3], gridRow: 4, gridCol: 2, colSpan: 1 },
-                { ...divisionsData[0].applications[0].cards[4], gridRow: 4, gridCol: 3, colSpan: 1 }
-            ] 
+            widgets: [] 
         }
     ];
 
@@ -536,8 +529,9 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         getVisibleDivisions().forEach((div, idx) => {
             const color = mindfulColors[idx % mindfulColors.length];
             const settings = divisionSettings[div.code] || {};
-            const dashboardCount = div.applications.length;
-            const cardCount = div.applications.reduce((total, app) => total + app.cards.length, 0);
+            const apps = getApplicationsForDivision(div);
+            const dashboardCount = apps.length;
+            const cardCount = apps.reduce((total, app) => total + app.cards.length, 0);
             const card = document.createElement('div');
             card.className = 'division-card';
             card.onclick = () => openDivisionDetail(div.code);
@@ -572,14 +566,15 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         const settings = divisionSettings[div.code] || {};
         switchMainView('division-detail');
         document.getElementById('detailDivisionTitle').innerText = `${div.code} - ${settings.title || div.name}`;
-        document.getElementById('detailDivisionSubtitle').innerText = `${div.applications.length} dashboard - ${div.applications.reduce((total, app) => total + app.cards.length, 0)} indikator tersedia`;
+        const apps = getApplicationsForDivision(div);
+        document.getElementById('detailDivisionSubtitle').innerText = `${apps.length} dashboard - ${apps.reduce((total, app) => total + app.cards.length, 0)} indikator tersedia`;
 
         const container = document.getElementById('divisionDetailContentContainer');
         const sources = getDashboardSourcesForDivision(div.code);
         container.innerHTML = `
             ${renderDivisionManagementPanel(div)}
             ${renderDivisionSourcesPanel(div, sources)}
-            ${div.applications.map((app) => `
+            ${apps.map((app) => `
             <div style="margin-bottom: 32px;">
                 <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--text-primary); display:flex; align-items:center; gap:8px;">
                     <span style="width:6px; height:16px; background:var(--indigo); border-radius:3px;"></span> ${app.appName}
@@ -602,6 +597,102 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
     function getDashboardSourcesForDivision(divCode) {
         return dashboardSources.filter(source => source.divisionCode === divCode);
+    }
+
+    function getCardTypeFromVisual(visualType) {
+        const typeMap = {
+            kpi: 'clean-metric',
+            summary: 'executive-summary',
+            table: 'mini-table',
+            bar: 'bar-chart',
+            donut: 'circular-stat',
+            status: 'status-list',
+            timeline: 'timeline',
+            heatmap: 'heatmap',
+            progress: 'growth-list'
+        };
+        return typeMap[visualType] || 'mini-table';
+    }
+
+    function getVisualLabel(visualType) {
+        const labelMap = {
+            kpi: 'KPI Angka',
+            summary: 'Ringkasan Eksekutif',
+            table: 'Tabel Data',
+            bar: 'Bar Chart',
+            donut: 'Donut / Circle',
+            status: 'Status List',
+            timeline: 'Timeline',
+            heatmap: 'Heatmap',
+            progress: 'Progress List'
+        };
+        return labelMap[visualType] || 'Tabel Data';
+    }
+
+    function getCardSpanByType(cardType) {
+        if (['bar-chart', 'heatmap', 'executive-summary'].includes(cardType)) return 3;
+        if (['mini-table', 'status-list', 'timeline', 'stacked-kpi'].includes(cardType)) return 2;
+        return 1;
+    }
+
+    function createCardsFromDashboardSource(source) {
+        const sourceId = String(source.id || source.name || 'api-source').replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+        const color = mindfulColors[Math.abs(sourceId.length) % mindfulColors.length];
+        const visualType = source.visualType || 'table';
+        const cardType = source.cardType || getCardTypeFromVisual(visualType);
+        const endpoint = source.endpoint || '';
+        const base = {
+            divisionCode: source.divisionCode || 'API',
+            dashboardName: source.name || 'Dashboard API',
+            widgetColor: color,
+            sourceId: source.id,
+            sourceType: source.type,
+            apiEndpoint: endpoint,
+            apiUrl: source.url || '',
+            apiParams: source.params || '',
+            apiPreviewData: source.previewData || null
+        };
+        const card = {
+            ...base,
+            id: `${sourceId}-card`,
+            type: cardType,
+            title: source.cardTitle || source.name || 'Card Dashboard',
+            subtitle: `${getVisualLabel(visualType)} - ${endpoint || 'Endpoint belum diisi'}`,
+            value: cardType === 'clean-metric' ? 'API' : undefined,
+            description: 'Mengikuti response endpoint API',
+            visual: getVisualLabel(visualType),
+            colSpanNum: Number(source.colSpanNum) || getCardSpanByType(cardType)
+        };
+        return [card];
+    }
+
+    function getApplicationsForDivision(div) {
+        const groupedApps = new Map();
+        getDashboardSourcesForDivision(div.code).forEach(source => {
+            const key = `${source.name || 'Dashboard API'}::${source.url || ''}`;
+            if (!groupedApps.has(key)) {
+                groupedApps.set(key, {
+                    appId: `source-${source.id}`,
+                    appName: source.name || 'Dashboard API',
+                    cards: []
+                });
+            }
+            if (source.type === 'API') {
+                groupedApps.get(key).cards.push(...createCardsFromDashboardSource(source));
+            }
+        });
+        return Array.from(groupedApps.values());
+    }
+
+    function findCatalogCardById(cardId) {
+        let foundCard = null;
+        divisionsData.forEach(div => {
+            getApplicationsForDivision(div).forEach(app => {
+                const match = app.cards.find(card => card.id === cardId);
+                if (match) foundCard = match;
+            });
+        });
+        return foundCard;
     }
 
     function renderDivisionSourcesPanel(div, sources) {
@@ -693,14 +784,18 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                 <tr>
                     <td>${escapeHTML(source.name)}</td>
                     <td>${escapeHTML(source.divisionCode)}</td>
-                    <td><span class="admin-status-pill">${escapeHTML(source.type)}</span></td>
-                    <td><a class="admin-link" href="${escapeAttr(source.url)}" target="_blank" rel="noopener noreferrer">Buka</a></td>
+                    <td>${escapeHTML(source.cardTitle || '-')}</td>
+                    <td><span class="admin-status-pill">${escapeHTML(getVisualLabel(source.visualType || 'table'))}</span></td>
+                    <td><span class="admin-muted-text">${escapeHTML(source.endpoint || source.url)}</span></td>
                     <td class="admin-action-cell">
-                        <button class="icon-btn admin-action-btn danger" onclick="deleteDashboardSource('${escapeAttr(source.id)}')" title="Hapus sumber"><i data-lucide="trash-2"></i></button>
+                        <a class="icon-btn admin-action-btn" href="${escapeAttr(source.url)}" target="_blank" rel="noopener noreferrer" title="Buka dashboard sumber"><i data-lucide="external-link"></i></a>
+                        <button class="icon-btn admin-action-btn" onclick="editDashboardSource('${escapeAttr(source.id)}')" title="Edit card"><i data-lucide="pencil"></i></button>
+                        <button class="icon-btn admin-action-btn" onclick="duplicateDashboardSource('${escapeAttr(source.id)}')" title="Duplikat card"><i data-lucide="copy"></i></button>
+                        <button class="icon-btn admin-action-btn danger" onclick="deleteDashboardSource('${escapeAttr(source.id)}')" title="Hapus card"><i data-lucide="trash-2"></i></button>
                     </td>
                 </tr>
             `).join('')
-            : `<tr><td colspan="5">Belum ada sumber dashboard.</td></tr>`;
+            : `<tr><td colspan="6">Belum ada card dashboard.</td></tr>`;
 
         const userRows = portalUsers.map(user => {
             const profile = roleProfiles[user.role] || roleProfiles.direksi;
@@ -737,13 +832,14 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
         const divisionSummaryRows = divisionsData.map(div => {
             const settings = divisionSettings[div.code] || {};
-            const indicatorCount = div.applications.reduce((total, app) => total + app.cards.length, 0);
+            const apps = getApplicationsForDivision(div);
+            const indicatorCount = apps.reduce((total, app) => total + app.cards.length, 0);
             const sourceCount = getDashboardSourcesForDivision(div.code).length;
             return `
                 <tr>
                     <td>${escapeHTML(div.code)}</td>
                     <td>${escapeHTML(settings.title || div.name)}</td>
-                    <td>${div.applications.length}</td>
+                    <td>${apps.length}</td>
                     <td>${indicatorCount}</td>
                     <td>${sourceCount}</td>
                     <td><span class="admin-status-pill">${escapeHTML(settings.status || 'Data Aktif')}</span></td>
@@ -757,12 +853,12 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             sources: `
                 <div class="admin-section">
                     <div class="admin-section-head">
-                        <h3>Sumber Dashboard</h3>
-                        <button class="btn btn-sm" onclick="openDashboardSourceModal()"><i data-lucide="plus"></i> Sumber Dashboard</button>
+                        <h3>Card Dashboard</h3>
+                        <button class="btn btn-sm" onclick="openDashboardSourceModal()"><i data-lucide="plus"></i> Card API</button>
                     </div>
                     <div class="admin-table-wrap">
                         <table class="admin-table">
-                            <thead><tr><th>Dashboard</th><th>Kategori</th><th>Tipe</th><th>URL</th><th>Aksi</th></tr></thead>
+                            <thead><tr><th>Dashboard Sumber</th><th>Kategori</th><th>Card</th><th>Tampilan</th><th>Endpoint</th><th>Aksi</th></tr></thead>
                             <tbody>${sourceRows}</tbody>
                         </table>
                     </div>
@@ -823,14 +919,25 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         if (notify) showToast(`Membuka ${section === 'sources' ? 'Sumber Dashboard' : section === 'users' ? 'Manajemen User' : section === 'scope' ? 'Scope Kategori' : 'Audit Log'}.`, 'success');
     }
 
-    function openDashboardSourceModal() {
+    function openDashboardSourceModal(sourceId = null) {
         const modal = document.getElementById('dashboardSourceModal');
         const divisionInput = document.getElementById('sourceDivisionInput');
         if (!modal || !divisionInput) return;
-        document.getElementById('sourceNameInput').value = '';
-        document.getElementById('sourceTypeInput').value = 'Link';
-        document.getElementById('sourceUrlInput').value = '';
+        const source = sourceId ? dashboardSources.find(item => item.id === sourceId) : null;
+        document.getElementById('dashboardSourceModalTitle').innerText = source ? 'Edit Card Dashboard' : 'Tambah Card Dashboard';
+        document.getElementById('sourceIdInput').value = source?.id || '';
+        document.getElementById('sourceNameInput').value = source?.name || '';
+        document.getElementById('sourceCardTitleInput').value = source?.cardTitle || '';
+        document.getElementById('sourceTypeInput').value = source?.type || 'API';
+        document.getElementById('sourceUrlInput').value = source?.url || '';
+        document.getElementById('sourceEndpointInput').value = source?.endpoint || '';
+        document.getElementById('sourceVisualInput').value = source?.visualType || 'table';
+        document.getElementById('sourceTokenInput').value = '';
+        document.getElementById('sourceParamsInput').value = source?.params || '';
+        apiTestPreviewPayload = source?.previewData || null;
+        updateApiTestResult('', '');
         divisionInput.innerHTML = getDivisionOptions(false);
+        if (source?.divisionCode) divisionInput.value = source.divisionCode;
         modal.classList.add('show');
         lucide.createIcons();
     }
@@ -838,6 +945,65 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
     function closeDashboardSourceModal() {
         const modal = document.getElementById('dashboardSourceModal');
         if (modal) modal.classList.remove('show');
+    }
+
+    function buildDashboardApiUrl() {
+        const baseUrl = document.getElementById('sourceUrlInput')?.value.trim();
+        const endpoint = document.getElementById('sourceEndpointInput')?.value.trim();
+        const params = document.getElementById('sourceParamsInput')?.value.trim();
+        if (!baseUrl) return '';
+        const normalizedBase = baseUrl.replace(/\/+$/, '');
+        const normalizedEndpoint = endpoint ? `/${endpoint.replace(/^\/+/, '')}` : '';
+        const query = params ? `?${params.replace(/^\?/, '')}` : '';
+        return `${normalizedBase}${normalizedEndpoint}${query}`;
+    }
+
+    function updateApiTestResult(type, message) {
+        const result = document.getElementById('apiTestResult');
+        if (!result) return;
+        result.className = `api-test-result ${type || ''}`.trim();
+        result.innerText = message || '';
+    }
+
+    async function testDashboardApi() {
+        const url = buildDashboardApiUrl();
+        const token = document.getElementById('sourceTokenInput')?.value.trim();
+        if (!url || !token) {
+            updateApiTestResult('warning', 'Base URL dan Bearer Token wajib diisi untuk test API.');
+            return;
+        }
+
+        updateApiTestResult('loading', 'Menghubungi API...');
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            const text = await response.text();
+            let parsed = null;
+            try {
+                parsed = JSON.parse(text);
+            } catch (err) {
+                parsed = null;
+            }
+
+            if (!response.ok) {
+                apiTestPreviewPayload = null;
+                updateApiTestResult('danger', `Gagal ${response.status}: ${text.slice(0, 180) || response.statusText}`);
+                return;
+            }
+
+            apiTestPreviewPayload = parsed;
+            const count = Array.isArray(parsed?.data) ? parsed.data.length : Array.isArray(parsed) ? parsed.length : null;
+            const suffix = count !== null ? ` - ${count} data terbaca` : ' - response JSON terbaca';
+            updateApiTestResult('success', `Berhasil ${response.status}${suffix}.`);
+        } catch (err) {
+            apiTestPreviewPayload = null;
+            updateApiTestResult('danger', `Gagal fetch dari browser: ${err.message}. Kemungkinan CORS, SSL, atau jaringan.`);
+        }
     }
 
     function openPortalUserModal() {
@@ -1045,12 +1211,23 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             return;
         }
         const name = document.getElementById('sourceNameInput')?.value.trim();
+        const id = document.getElementById('sourceIdInput')?.value;
+        const cardTitle = document.getElementById('sourceCardTitleInput')?.value.trim();
         const divisionCode = document.getElementById('sourceDivisionInput')?.value;
         const type = document.getElementById('sourceTypeInput')?.value || 'Link';
         const url = document.getElementById('sourceUrlInput')?.value.trim();
+        const endpoint = document.getElementById('sourceEndpointInput')?.value.trim();
+        const visualType = document.getElementById('sourceVisualInput')?.value || 'table';
+        const params = document.getElementById('sourceParamsInput')?.value.trim();
+        const token = document.getElementById('sourceTokenInput')?.value.trim();
 
         if (!name || !divisionCode || !url) {
-            showToast('Nama, kategori, dan URL wajib diisi.', 'warning');
+            showToast('Nama dashboard, kategori, dan URL wajib diisi.', 'warning');
+            return;
+        }
+
+        if (type === 'API' && (!cardTitle || !endpoint)) {
+            showToast('Nama card dan endpoint wajib diisi untuk API.', 'warning');
             return;
         }
 
@@ -1061,18 +1238,67 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             return;
         }
 
-        dashboardSources.unshift({
-            id: `source-${Date.now()}`,
+        const sourceId = id || `source-${Date.now()}`;
+        const existingSource = dashboardSources.find(source => source.id === sourceId);
+        const nextSource = {
+            id: sourceId,
             name,
+            cardTitle: cardTitle || name,
             divisionCode,
             type,
             url,
-            createdAt: new Date().toISOString()
-        });
+            endpoint,
+            params,
+            visualType,
+            visualLabel: getVisualLabel(visualType),
+            cardType: getCardTypeFromVisual(visualType),
+            colSpanNum: getCardSpanByType(getCardTypeFromVisual(visualType)),
+            hasToken: Boolean(token) || Boolean(existingSource?.hasToken),
+            previewData: apiTestPreviewPayload || existingSource?.previewData || null,
+            createdAt: existingSource?.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        if (existingSource) {
+            dashboardSources = dashboardSources.map(source => source.id === sourceId ? nextSource : source);
+        } else {
+            dashboardSources.unshift(nextSource);
+        }
         persistDashboardSources();
         renderAdminConsole('sources');
+        renderDivisionsGrid();
+        renderFullTreeLibrary();
         closeDashboardSourceModal();
-        showToast(`Sumber dashboard "${name}" ditambahkan.`, 'success');
+        showToast(`Card "${cardTitle || name}" ${existingSource ? 'diperbarui' : 'ditambahkan'}.`, 'success');
+    }
+
+    function editDashboardSource(sourceId) {
+        const source = dashboardSources.find(item => item.id === sourceId);
+        if (!source) {
+            showToast('Card dashboard tidak ditemukan.', 'warning');
+            return;
+        }
+        openDashboardSourceModal(sourceId);
+    }
+
+    function duplicateDashboardSource(sourceId) {
+        const source = dashboardSources.find(item => item.id === sourceId);
+        if (!source) {
+            showToast('Card dashboard tidak ditemukan.', 'warning');
+            return;
+        }
+        const copy = {
+            ...source,
+            id: `source-${Date.now()}`,
+            cardTitle: `${source.cardTitle || source.name} Copy`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        dashboardSources.unshift(copy);
+        persistDashboardSources();
+        renderAdminConsole('sources');
+        renderDivisionsGrid();
+        renderFullTreeLibrary();
+        showToast(`Card "${copy.cardTitle}" diduplikat.`, 'success');
     }
 
     function deleteDashboardSource(sourceId) {
@@ -1080,7 +1306,115 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         dashboardSources = dashboardSources.filter(item => item.id !== sourceId);
         persistDashboardSources();
         renderAdminConsole('sources');
+        renderDivisionsGrid();
+        renderFullTreeLibrary();
         if (source) showToast(`Sumber "${source.name}" dihapus.`, 'warning');
+    }
+
+    function unwrapApiPayload(payload) {
+        if (!payload) return null;
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload.data)) return payload.data;
+        if (payload.data && typeof payload.data === 'object') return payload.data;
+        return payload;
+    }
+
+    function getApiRows(payload) {
+        const data = unwrapApiPayload(payload);
+        if (Array.isArray(data)) return data.filter(item => item && typeof item === 'object').slice(0, 4);
+        if (data && typeof data === 'object') {
+            const nested = Object.values(data).find(value => Array.isArray(value));
+            if (nested) return nested.filter(item => item && typeof item === 'object').slice(0, 4);
+        }
+        return [];
+    }
+
+    function flattenApiObject(obj, prefix = '') {
+        if (!obj || typeof obj !== 'object') return [];
+        return Object.entries(obj).flatMap(([key, value]) => {
+            const label = prefix ? `${prefix}.${key}` : key;
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                return flattenApiObject(value, label);
+            }
+            return [[label, Array.isArray(value) ? `${value.length} item` : value]];
+        });
+    }
+
+    function formatApiValue(value) {
+        if (value === null || value === undefined || value === '') return '-';
+        if (typeof value === 'number') return Number.isInteger(value) ? value.toLocaleString('id-ID') : value.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+        return String(value);
+    }
+
+    function renderApiCardContent(w, division) {
+        const rows = getApiRows(w.apiPreviewData);
+        const payload = unwrapApiPayload(w.apiPreviewData);
+        const flat = flattenApiObject(payload).filter(([, value]) => value !== null && value !== undefined).slice(0, 6);
+        const endpoint = w.apiEndpoint || 'Endpoint belum diisi';
+        const emptyState = `
+            <div class="api-card-empty">
+                <i data-lucide="database"></i>
+                <strong>Belum ada preview data</strong>
+                <span>Test API lalu simpan card supaya contoh response asli tampil di sini.</span>
+                <small>${escapeHTML(endpoint)}</small>
+            </div>
+        `;
+
+        if (!w.apiPreviewData) {
+            return `
+                <div class="dense-card-head">
+                    <div>
+                        <span class="card-division-badge">${division}</span>
+                        <h4>${escapeHTML(w.title)}</h4>
+                        <p>${escapeHTML(endpoint)}</p>
+                    </div>
+                    <i data-lucide="database"></i>
+                </div>
+                ${emptyState}
+            `;
+        }
+
+        if (w.type === 'mini-table') {
+            const firstRow = rows[0] || {};
+            const columns = Object.keys(firstRow).slice(0, 4);
+            return `
+                <div class="dense-card-head">
+                    <div>
+                        <span class="card-division-badge">${division}</span>
+                        <h4>${escapeHTML(w.title)}</h4>
+                        <p>${escapeHTML(endpoint)}</p>
+                    </div>
+                    <i data-lucide="table-2"></i>
+                </div>
+                ${rows.length && columns.length ? `
+                    <table class="mini-widget-table api-widget-table">
+                        <thead><tr>${columns.map(col => `<th>${escapeHTML(col.replace(/_/g, ' '))}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${rows.map(row => `<tr>${columns.map(col => `<td>${escapeHTML(formatApiValue(row[col]))}</td>`).join('')}</tr>`).join('')}
+                        </tbody>
+                    </table>
+                ` : emptyState}
+            `;
+        }
+
+        return `
+            <div class="dense-card-head">
+                <div>
+                    <span class="card-division-badge">${division}</span>
+                    <h4>${escapeHTML(w.title)}</h4>
+                    <p>${escapeHTML(endpoint)}</p>
+                </div>
+                <i data-lucide="${w.type === 'clean-metric' ? 'gauge' : 'database'}"></i>
+            </div>
+            <div class="api-field-list">
+                ${flat.length ? flat.map(([key, value]) => `
+                    <div>
+                        <span>${escapeHTML(key.replace(/_/g, ' '))}</span>
+                        <strong>${escapeHTML(formatApiValue(value))}</strong>
+                    </div>
+                `).join('') : emptyState}
+            </div>
+        `;
     }
 
     function renderCardHTML(w) {
@@ -1090,6 +1424,16 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
         let cardClass = 'futuristic-card';
         let content = '';
+
+        if (w.sourceType === 'API') {
+            cardClass += ' card-dense card-api-preview';
+            content = renderApiCardContent(w, division);
+            return `
+                <article class="${cardClass}" style="grid-column: span ${span}; --widget-color:${wColor};">
+                    ${content}
+                </article>
+            `;
+        }
 
         if (w.type === 'hero-kpi') {
             cardClass += ' card-kpi-hero card-kpi';
@@ -1411,7 +1755,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
         getVisibleDivisions().forEach((div, idx) => {
             const color = mindfulColors[idx % mindfulColors.length];
             const divisionMatch = normalizeSearchText(`${div.code} ${div.name}`).includes(query);
-            const filteredApps = div.applications.map(app => {
+            const filteredApps = getApplicationsForDivision(div).map(app => {
                 const appMatch = normalizeSearchText(app.appName).includes(query);
                 const cards = !query || divisionMatch || appMatch
                     ? app.cards
@@ -1685,11 +2029,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
     }
 
     function onCatalogDragStart(e, cardId) {
-        let foundCard = null;
-        divisionsData.forEach(d => d.applications.forEach(app => {
-            const match = app.cards.find(c => c.id === cardId);
-            if (match) foundCard = match;
-        }));
+        const foundCard = findCatalogCardById(cardId);
         if (!foundCard) return;
         draggedWidgetData = { cardId, foundCard };
         draggedCanvasIndex = null;
@@ -1910,11 +2250,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
             showToast('Indikator sudah ada di dalam kanvas!', 'warning');
             return;
         }
-        let foundCard = null;
-        divisionsData.forEach(d => d.applications.forEach(app => {
-            const match = app.cards.find(c => c.id === cardId);
-            if (match) foundCard = match;
-        }));
+        const foundCard = findCatalogCardById(cardId);
         if (foundCard) {
             const span = getCardSpan(foundCard);
             const heightRows = getCardHeightRows(foundCard);
@@ -1971,7 +2307,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
                 <div class="canvas-empty-state">
                     <i data-lucide="layout-grid"></i>
                     <strong>Belum ada indikator</strong>
-                    <span>Pilih indikator dari panel kanan untuk menyusun tampilan kustom.</span>
+                    <span>Tambahkan sumber dashboard di Super Admin, lalu pilih endpoint/card API dari panel kanan.</span>
                 </div>
             `;
             lucide.createIcons();
@@ -2182,7 +2518,7 @@ const mindfulColors = ["#1688CF", "#14B8A6", "#6366F1", "#F59E0B", "#10B981", "#
 
         dynContainer.innerHTML = '';
         if (canvasWidgets.length === 0) {
-            dynContainer.innerHTML = `<div style="grid-column: span 3; text-align:center; padding: 40px; color: var(--text-secondary);">Belum ada indikator. Pilih indikator dari panel kanan atau terapkan tampilan tersimpan.</div>`;
+            dynContainer.innerHTML = `<div style="grid-column: span 3; text-align:center; padding: 40px; color: var(--text-secondary);">Belum ada indikator aktif. Tambahkan sumber dashboard dan susun card dari Tampilan Kustom.</div>`;
             return;
         }
 

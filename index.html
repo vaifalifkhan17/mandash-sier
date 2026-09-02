@@ -333,13 +333,18 @@
 <div class="modal-backdrop" id="dashboardSourceModal" onclick="if(event.target === this) closeDashboardSourceModal();">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 class="modal-title">Tambah Sumber Dashboard</h3>
+            <h3 class="modal-title" id="dashboardSourceModalTitle">Tambah Card Dashboard</h3>
             <button class="icon-btn" onclick="closeDashboardSourceModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
         </div>
         <form class="modal-form" onsubmit="saveDashboardSource(event)">
+            <input type="hidden" id="sourceIdInput">
             <div class="form-group">
-                <label class="form-label">Nama Website / Dashboard</label>
-                <input class="form-input" id="sourceNameInput" placeholder="Contoh: Dashboard Korporat">
+                <label class="form-label">Nama Dashboard Sumber</label>
+                <input class="form-input" id="sourceNameInput" placeholder="Contoh: RKL RPL">
+            </div>
+            <div class="form-group source-api-field">
+                <label class="form-label">Nama Card / Indikator</label>
+                <input class="form-input" id="sourceCardTitleInput" placeholder="Contoh: Laporan Semester RKL RPL">
             </div>
             <div class="form-group">
                 <label class="form-label">Kategori Utama</label>
@@ -354,12 +359,44 @@
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">URL</label>
-                <input class="form-input" id="sourceUrlInput" placeholder="https://...">
+                <label class="form-label">Base URL / URL</label>
+                <input class="form-input" id="sourceUrlInput" placeholder="https://dev-rklrpl.sier.id:8443">
+            </div>
+            <div class="form-group source-api-field">
+                <label class="form-label">Endpoint API</label>
+                <input class="form-input" id="sourceEndpointInput" placeholder="/api/v1/dashboard/reports">
+            </div>
+            <div class="form-group source-api-field">
+                <label class="form-label">Tipe Tampilan Card</label>
+                <select class="form-input" id="sourceVisualInput">
+                    <option value="table">Tabel Data</option>
+                    <option value="kpi">KPI Angka</option>
+                    <option value="summary">Ringkasan Eksekutif</option>
+                    <option value="bar">Bar Chart</option>
+                    <option value="donut">Donut / Circle</option>
+                    <option value="status">Status List</option>
+                    <option value="timeline">Timeline</option>
+                    <option value="heatmap">Heatmap</option>
+                    <option value="progress">Progress List</option>
+                </select>
+            </div>
+            <div class="form-group source-api-field">
+                <label class="form-label">Bearer Token</label>
+                <input class="form-input" id="sourceTokenInput" type="password" placeholder="Token API">
+            </div>
+            <div class="form-group source-api-field">
+                <label class="form-label">Parameter Query</label>
+                <input class="form-input" id="sourceParamsInput" placeholder="area=ALL&year=2026">
+            </div>
+            <div class="api-test-result" id="apiTestResult"></div>
+            <div class="modal-footer source-test-footer">
+                <button class="btn btn-secondary" type="button" onclick="testDashboardApi()">
+                    <i data-lucide="plug-zap" style="width:14px;height:14px;"></i> Test API
+                </button>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" onclick="closeDashboardSourceModal()">Batal</button>
-                <button class="btn" type="submit"><i data-lucide="plus" style="width:14px;height:14px;"></i> Simpan</button>
+                <button class="btn" type="submit"><i data-lucide="plus" style="width:14px;height:14px;"></i> Simpan Card</button>
             </div>
         </form>
     </div>

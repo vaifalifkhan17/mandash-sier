@@ -2755,6 +2755,18 @@ textarea {
   font-weight: 600;
 }
 
+.admin-muted-text {
+  display: inline-block;
+  max-width: 360px;
+  color: var(--app-muted);
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .admin-table tr:last-child td {
   border-bottom: none;
 }
@@ -3021,6 +3033,49 @@ select.form-input:focus {
 .source-form .btn {
   height: 42px;
   justify-content: center;
+}
+
+.source-test-footer {
+  justify-content: flex-start !important;
+  margin-top: 0 !important;
+}
+
+.api-test-result {
+  display: none;
+  min-height: 36px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-soft);
+  color: var(--app-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.api-test-result.loading,
+.api-test-result.success,
+.api-test-result.warning,
+.api-test-result.danger {
+  display: block;
+}
+
+.api-test-result.success {
+  background: #e9f8f1;
+  border-color: #b7efd2;
+  color: #0f8a58;
+}
+
+.api-test-result.warning {
+  background: #fff7e8;
+  border-color: #fde5b4;
+  color: #b77906;
+}
+
+.api-test-result.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
 }
 
 .source-form .btn svg,
@@ -3863,6 +3918,93 @@ select.form-input:focus {
 
 .canvas-grid .card-mini-table .mini-widget-table {
   margin-top: 8px;
+}
+
+.card-api-preview .dense-card-head p {
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-widget-table th,
+.api-widget-table td {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-field-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.api-field-list > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-soft);
+}
+
+.api-field-list span,
+.api-field-list strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-field-list span {
+  color: var(--app-muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.api-field-list strong {
+  margin-top: 3px;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.api-card-empty {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  padding: 14px;
+  border: 1px dashed var(--app-border-strong);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-soft);
+  text-align: center;
+  color: var(--app-muted);
+}
+
+.api-card-empty svg {
+  width: 22px;
+  height: 22px;
+  color: var(--widget-color);
+}
+
+.api-card-empty strong {
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.api-card-empty span,
+.api-card-empty small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .canvas-grid .card-executive-summary .executive-summary-grid {
